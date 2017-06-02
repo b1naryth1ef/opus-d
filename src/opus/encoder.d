@@ -32,6 +32,7 @@ extern (C) {
   int opus_encoder_ctl(OpusEncoder*, int request, ...);
 }
 
+/// Encoder is a wrapper around opus encoding
 class Encoder {
   OpusEncoder* encoder;
 
@@ -51,31 +52,38 @@ class Encoder {
     assert(error == OPUS_OK);
   }
 
-  ubyte[] encode(const short[] pcm, int frameSize) {
-    ubyte[] data;
-    data.length = (frameSize * this.channels) * 2;
+  ~this() {
+    if (this.encoder) {
+      opus_encoder_destroy(this.encoder);
+      this.encoder = null;
+    }
+  }
+
+  /// Encodes an array of PCM data into raw opus
+  ubyte[] encode(immutable short[] pcm, int frameSize) {
+    ubyte[] data = new ubyte[]((frameSize * this.channels) * 2);
     int size = opus_encode(this.encoder, &pcm[0], frameSize, &data[0], cast(int)data.length);
     return data[0..size];
   }
 
+  /// Sets the bitrate for this encoder (in kbps)
   void setBitrate(int kbps) {
     assert(opus_encoder_ctl(this.encoder, CTL.SET_BITRATE_REQUEST, kbps * 1024) == OPUS_OK);
   }
 
+  /// Sets the bandwidth for this encoder
   void setBandwidth(Bandwidth bw) {
     assert(opus_encoder_ctl(this.encoder, CTL.SET_BANDWIDTH_REQUEST, cast(int)bw) == OPUS_OK);
   }
 
+  /// Sets whether inband FEC (forward error correction) is enabled for this encoder
   void setInbandFEC(bool enabled) {
     assert(opus_encoder_ctl(this.encoder, CTL.SET_INBAND_FEC_REQUEST, cast(int)enabled) == OPUS_OK);
   }
 
+  /// Sets the predicted packet loss percent for FEC (if enabled)
   void setPacketLossPercent(int percent) {
     assert(opus_encoder_ctl(this.encoder, CTL.SET_PACKET_LOSS_PERC_REQUEST, percent) == OPUS_OK);
-  }
-
-  ~this() {
-    opus_encoder_destroy(this.encoder);
   }
 }
 
